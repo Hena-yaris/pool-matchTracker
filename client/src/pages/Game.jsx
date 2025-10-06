@@ -23,6 +23,7 @@ const Game = () => {
     setPlayers(updated);
   };
 
+  //add score from the list
   const addScore = (index) => {
     const updated = [...players];
     const val = Number(updated[index].currentScore);
@@ -41,6 +42,14 @@ const Game = () => {
     }
   };
 
+  //remove score from the list
+  const removeScore= (playerIndex,scoreIndex)=> {
+    const updated =[...players];
+    updated[playerIndex].scores.splice(scoreIndex,1);
+    setPlayers(updated);
+  }
+
+  
   const totalScore = (scores, current) => {
     const sum = scores.reduce((a, b) => a + b, 0);
     const currentVal = Number(current);
@@ -98,7 +107,7 @@ const Game = () => {
                         key={i}
                         className="bg-yellow-500 text-black px-3 py-1 rounded-lg"
                       >
-                        {s}
+                        <button className="cursor-pointer" onClick={()=> removeScore(index,i)}>{s}</button>
                       </li>
                     ))}
                   </ul>
