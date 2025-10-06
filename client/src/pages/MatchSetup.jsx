@@ -44,12 +44,13 @@ const MatchSetup = () => {
 
         <div className="flex flex-col gap-4 w-full max-w-md">
           {players.map((player, index) => (
-            <div key={index} className="flex gap-2">
+            <div key={index} className="flex items-center gap-2">
               <input
                 type="text"
                 placeholder={`Player ${index + 1} Name`}
                 value={player.name}
                 onChange={(e) => handleChange(index, e.target.value)}
+                onKeyDown={(e)=> e.key==="Enter" && addPlayer()}
                 className={`px-4 py-2 rounded-xl border border-gray-400 w-full focus:outline-none focus:ring-2 focus:ring-yellow-500 text-black bg-gray-200`}
               />
               {players.length>1 && (
