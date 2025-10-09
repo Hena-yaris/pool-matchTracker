@@ -1,134 +1,142 @@
 
-////////////////////////////
-import React, { useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+
+/////////////555555555
+import React, { useState } from "react";
+import { useNavigate,useLocation } from "react-router-dom";
+
+
+const sumArray = ((arr)=> arr && arr.length ? arr.reduce((a,b)=> a+Number(b),0): 0);
+const totalForplayer = (player,includeCurrent= true)=> {
+      const base = sumArray(player.scores);
+      return includeCurrent? base+ (Number(player.currentScore) || 0): base;
+}
+
+const makeInitialPlayers = (initial = []) =>
+  initial.map((p, i) => ({
+    id: p.id ?? i, // ✅ if p.id exists, use it; else fallback to index
+    name: p.name ?? `Player ${i + 1}`, // ✅ if no name, auto-label
+    scores: p.scores ?? [], // ✅ ensure we always have an array
+    currentScore: p.currentScore ?? "", // ✅ ensure we always have a string
+  }));
+
 
 const Game = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-  const initialPlayers = location.state?.players || [];
+  const location =useLocation();
+  const initialPlayers= location.state?.players||[]
+  const [players, setPlayers] = useState(makeInitialPlayers(initialPlayers));
 
-  const [players, setPlayers] = useState(
-    initialPlayers.map((p) => ({
-      ...p,
-      scores: [],
-      currentScore: "",
-      animate: false, // controls total pulse
-    }))
-  );
-
+  
   const handleChange = (index, value) => {
-    const updated = [...players];
-    updated[index].currentScore = value;
-    setPlayers(updated);
+    setPlayers((prev)=> prev.map((p,i)=> i===index? {...p,currentScore: value}: p))
   };
 
-  //add score from the list
   const addScore = (index) => {
-    const updated = [...players];
-    const val = Number(updated[index].currentScore);
-    if (!isNaN(val) && val !== 0) {
-      updated[index].scores.push(val);
-      updated[index].currentScore = "";
-      updated[index].animate = true; // trigger animation
-      setPlayers(updated);
 
-      // reset animation flag after short delay
-      setTimeout(() => {
-        const reset = [...updated];
-        reset[index].animate = false;
-        setPlayers(reset);
-      }, 500);
-    }
+
+     setPlayers((prev) =>
+       prev.map((p, i) => {
+         if (i !== index) return p;
+         const val = Number(p.currentScore);
+         if (isNaN(val) || val === 0) return p;
+         return {
+           ...p,
+           scores: [...p.scores, val], // new array
+           currentScore: "", // reset
+         };
+       })
+     );
   };
 
-  //remove score from the list
-  const removeScore= (playerIndex,scoreIndex)=> {
-    const updated =[...players];
-    updated[playerIndex].scores.splice(scoreIndex,1);
-    setPlayers(updated);
+  //remove score
+  const removeScore =(playerIndex,scoreIndex)=> {
+
+    setPlayers((prev)=> prev.map((p,i)=> playerIndex===i? {...p, scores: p.scores.filter((_,idx)=> idx!==scoreIndex)}: p ))
   }
 
   
-  const totalScore = (scores, current) => {
-    const sum = scores.reduce((a, b) => a + b, 0);
-    const currentVal = Number(current);
-    return !isNaN(currentVal) ? sum + currentVal : sum;
-  };
 
   const finishGame = () => {
-    const sorted = [...players].sort(
-      (a, b) =>
-        totalScore(b.scores, b.currentScore) -
-        totalScore(a.scores, a.currentScore)
-    );
+    const sorted = [...players].sort((a, b) => totalForplayer(b) - totalForplayer(a));
+
+    const topScore = totalForplayer(sorted[0]);
+    const bottomScore = totalForplayer(sorted[sorted.length - 1]);
+
+    const topTies = sorted.filter((p) => totalForplayer(p) === topScore);
+    const bottomTies = sorted.filter((p) => totalForplayer(p) === bottomScore);
+
+    if (topTies.length > 1) {
+      navigate("/tiebreak", {
+        state: { mode: "top", players: topTies, others: sorted },
+      });
+      return;
+    }
+
+    if (bottomTies.length > 1) {
+      navigate("/tiebreak", {
+        state: { mode: "bottom", players: bottomTies, others: sorted },
+      });
+      return;
+    }
+
     navigate("/results", { state: { players: sorted } });
   };
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white p-4">
-      <h2 className="text-3xl font-bold mb-6">Game On 🎱</h2>
+      <h2 className="text-3xl font-bold mb-6">Game On 🎯</h2>
 
       <div className="flex flex-col gap-4 w-full max-w-md">
-        {players.map((player, index) => {
-          const total = totalScore(player.scores, player.currentScore);
-          return (
-            <div
-              key={index}
-              className="bg-gray-800 p-4 rounded-xl w-full shadow-lg transition-all duration-300"
-            >
-              <h3 className="text-lg font-semibold mb-2">{player.name}</h3>
-
-              {/* Input + Add button */}
-              <div className="flex gap-2 mb-3">
-                <input
-                  type="number"
-                  value={player.currentScore}
-                  onKeyDown={(e) => e.key === "Enter" && addScore(index)}
-                  onChange={(e) => handleChange(index, e.target.value)}
-                  placeholder="Enter points"
-                  className="w-full px-3 py-2 rounded-lg text-black text-center bg-yellow-400 focus:ring-2 focus:ring-yellow-500 outline-none"
-                />
-                <button
-                  onClick={() => addScore(index)}
-                  className="bg-green-500 hover:bg-green-600 px-4 py-2 rounded-lg font-bold text-white"
-                >
-                  ➕
-                </button>
-              </div>
-
-              {/* Display list of scores */}
-              <div className="bg-gray-700 rounded-lg p-2 mb-2">
-                <h4 className="font-semibold mb-1">Scores:</h4>
-                {player.scores.length > 0 ? (
-                  <ul className="flex flex-wrap gap-2">
-                    {player.scores.map((s, i) => (
-                      <li
-                        key={i}
-                        className="bg-yellow-500 text-black px-3 py-1 rounded-lg"
-                      >
-                        <button className="cursor-pointer" onClick={()=> removeScore(index,i)}>{s}</button>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-gray-400 text-sm">No scores yet</p>
-                )}
-              </div>
-
-              {/* Total (with animation) */}
-              <div
-                className={`text-right font-bold text-2xl ${
-                  player.animate
-                    ? "text-green-400 scale-110 transition-transform duration-200"
-                    : "text-green-400 transition-transform duration-200"
-                }`}
+        {players.map((player, index) => (
+          <div key={index} className="bg-gray-800 p-4 rounded-xl w-full">
+            <h3 className="text-lg font-semibold mb-2">{player.name}</h3>
+            <div className="flex gap-2 mb-3">
+              <input
+                type="number"
+                value={player.currentScore}
+                onChange={(e) => handleChange(index, e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && addScore(index)}
+                placeholder="Enter points"
+                className="w-full px-3 py-2 rounded-lg text-black text-center bg-yellow-400"
+              />
+              <button
+                onClick={() => addScore(index)}
+                className="bg-green-500 hover:bg-green-600 px-4 py-2 rounded-lg font-bold text-white"
               >
-                Total: {total}
-              </div>
+                ➕
+              </button>
             </div>
-          );
-        })}
+
+            {/** scores list */}
+            <div className="bg-gray-700 rounded-lg p-2 mb-2">
+              <h4 className="font-semibold mb-1">Scores:</h4>
+              {player.scores.length > 0 ? (
+                <ul className="flex flex-wrap gap-2">
+                  {player.scores.map((s, i) => (
+                    <li
+                      key={i}
+                      className="bg-yellow-500 text-black px-3 py-1 rounded-lg"
+                    >
+                      <span>{s}</span>
+                      <button
+                        className="cursor-pointer text-red-700 font-bold hover:text-red-900 pl-1"
+                        onClick={() => removeScore(index, i)}
+                      >
+                        X
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-gray-400 text-sm">No scores yet</p>
+              )}
+            </div>
+
+            <div className="text-right font-bold text-xl text-green-400">
+              Total: {totalForplayer(player)}
+            </div>
+          </div>
+        ))}
 
         <button
           onClick={finishGame}
@@ -142,3 +150,16 @@ const Game = () => {
 };
 
 export default Game;
+
+
+
+
+
+
+/**
+ * Game component
+ * - Immutable updates
+ * - Live leader display
+ * - Confirm before finishing
+ * - Save finished games to localStorage ("gameHistory")
+ */
