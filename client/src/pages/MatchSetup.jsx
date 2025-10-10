@@ -39,12 +39,12 @@ const MatchSetup = () => {
       // Pass only the active players to the game state
       navigate("/game", { state: { players: activePlayers } });
     }
-    // Note: No 'else' needed here, but you might want to show an alert/error message.
   };
 
   // Determine if the start button should be enabled (at least two non-empty players)
   const isStartEnabled =
     players.filter((p) => p.name.trim() !== "").length >= 2;
+    
   // Determine if the add button should be enabled (last player must be named)
   const isAddEnabled = players[players.length - 1].name.trim() !== "";
 

@@ -1,52 +1,59 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
+/* ---------- 🔹 Pure Utility Functions ---------- */
+const LOCAL_KEY_TIE = "henok-tieGame";
 
-/* ---------- 🔹 Pure Utility Functions (outside component for performance) ---------- */
+const sumArray = (arr) =>
+  arr && arr.length ? arr.reduce((a, b) => a + Number(b), 0) : 0;
 
-
-// Safely sum an array of numbers
-const sumArray = ((arr)=> arr && arr.length? arr.reduce((a,b)=> a+ Number(b),0):0);
-
-// Compute total score for a player
-const totalForplayer= (player,includeCurrent=true)=> {
-    const base = sumArray(player.scores);
-    return includeCurrent? base+ (Number(player.currentScore) || 0): base;
-}
+const totalForplayer = (player, includeCurrent = true) => {
+  const base = sumArray(player.scores);
+  return includeCurrent ? base + (Number(player.currentScore) || 0) : base;
+};
 
 const Tiebreak = () => {
   const { state } = useLocation();
   const navigate = useNavigate();
-
   const { mode, players, others } = state;
-  const [local, setLocal] = useState(
-    players.map((p) => ({ ...p, scores: [], currentScore: "" }))
-  );
 
-  // Update current input
+  // ✅ Proper localStorage + fallback logic
+  const [local, setLocal] = useState(() => {
+    const saved = localStorage.getItem(LOCAL_KEY_TIE);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (error) {
+        console.error("Failed to parse saved tiebreak data:", error);
+      }
+    }
+    // Fallback if no saved data or parse failed
+    return players.map((p) => ({ ...p, scores: [], currentScore: "" }));
+  });
+
+  // ✅ Save whenever `local` changes
+  useEffect(() => {
+    localStorage.setItem(LOCAL_KEY_TIE, JSON.stringify(local));
+  }, [local]);
+
+  /* ---------- 🔹 Handlers ---------- */
   const handleChange = (index, val) => {
     setLocal((prev) =>
       prev.map((p, i) => (i === index ? { ...p, currentScore: val } : p))
     );
   };
 
-  // Add a score immutably
   const addScore = (index) => {
     setLocal((prev) =>
       prev.map((p, i) => {
         if (i !== index) return p;
         const val = Number(p.currentScore);
         if (isNaN(val) || val === 0) return p;
-        return {
-          ...p,
-          scores: [...p.scores, val], // new array
-          currentScore: "", // reset
-        };
+        return { ...p, scores: [...p.scores, val], currentScore: "" };
       })
     );
   };
 
-  // Remove a specific score
   const removeScore = (playerIndex, scoreIndex) => {
     setLocal((prev) =>
       prev.map((p, i) =>
@@ -57,7 +64,6 @@ const Tiebreak = () => {
     );
   };
 
-  // Finish and navigate to results
   const finishTiebreak = () => {
     const sortedTies = [...local].sort(
       (a, b) => totalForplayer(b) - totalForplayer(a)
@@ -71,9 +77,13 @@ const Tiebreak = () => {
       finalPlayers = [...rest, ...sortedTies];
     }
 
+    // ✅ Clear storage when finished
+    localStorage.removeItem(LOCAL_KEY_TIE);
+
     navigate("/results", { state: { players: finalPlayers } });
   };
 
+  /* ---------- 🔹 Render ---------- */
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white p-4">
       <h2 className="text-3xl font-bold mb-6">
@@ -143,13 +153,3 @@ const Tiebreak = () => {
 };
 
 export default Tiebreak;
-
-
-
-
-/**
- * Tiebreak component
- * - Receives: { mode: "top"|"bottom", players: [tiedPlayers], others: [fullSorted] }
- * - Local scores are immutable updates
- * - On finish, merges sorted tiebreak results with the rest and navigates to Results
- */

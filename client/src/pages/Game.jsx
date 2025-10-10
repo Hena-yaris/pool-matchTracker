@@ -1,11 +1,8 @@
 
 
-
-
-///////////////////////////2
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { motion } from "framer-motion"; // ⭐️ Import motion for animations
+import { motion } from "framer-motion";
 
 // --- Helper Functions ---
 const sumArray = (arr) =>
@@ -24,19 +21,19 @@ const makeInitialPlayers = (initial = []) =>
     scores: p.scores ?? [],
     currentScore: p.currentScore ?? "",
   }));
+
+const LOCAL_KEY_GAME = "henok-game"; // 🔑 localStorage key
 // --- End Helper Functions ---
 
 // --- Component for Stylish Leaderboard Stats ---
 const LeaderboardStats = ({ leader, least, totalForplayer }) => {
-  // Framer Motion variants for the stats section
   const statsContainerVariants = {
     hidden: { opacity: 0, y: -20 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.5, delay: 0.3 } },
   };
 
-  // Framer Motion initial and whileHover state for the cards
   const cardMotion = {
-    whileHover: { scale: 1.05, boxShadow: "0 10px 15px rgba(0, 0, 0, 0.2)" },
+    whileHover: { scale: 1.05, boxShadow: "0 10px 15px rgba(0,0,0,0.2)" },
   };
 
   return (
@@ -50,8 +47,8 @@ const LeaderboardStats = ({ leader, least, totalForplayer }) => {
       <motion.div
         {...cardMotion}
         className="flex items-center flex-1 min-w-0 p-4 rounded-xl cursor-pointer
-                           bg-gradient-to-br from-yellow-400 to-yellow-500 text-gray-900 
-                           shadow-2xl border-b-4 border-yellow-600"
+                   bg-gradient-to-br from-yellow-400 to-yellow-500 text-gray-900 
+                   shadow-2xl border-b-4 border-yellow-600"
       >
         <span className="text-4xl pr-3">👑</span>
         <div className="flex flex-col truncate">
@@ -69,8 +66,8 @@ const LeaderboardStats = ({ leader, least, totalForplayer }) => {
       <motion.div
         {...cardMotion}
         className="flex items-center flex-1 min-w-0 p-4 rounded-xl cursor-pointer
-                           bg-gradient-to-br from-red-600 to-red-700 text-white 
-                           shadow-2xl border-b-4 border-red-800"
+                   bg-gradient-to-br from-red-600 to-red-700 text-white 
+                   shadow-2xl border-b-4 border-red-800"
       >
         <span className="text-4xl pr-3">💀</span>
         <div className="flex flex-col truncate">
@@ -93,9 +90,37 @@ const Game = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const initialPlayers = location.state?.players || [];
-  const [players, setPlayers] = useState(makeInitialPlayers(initialPlayers));
 
-  // ⭐️ EFFICIENT SORTING: Use useMemo for sorting the players
+  const [players, setPlayers] = useState(() => {
+    const saved = localStorage.getItem(LOCAL_KEY_GAME);
+
+    // 🟢 If new players are passed in from navigation, use them (start fresh)
+    if (initialPlayers.length > 0) {
+      const formatted = makeInitialPlayers(initialPlayers);
+      localStorage.setItem(LOCAL_KEY_GAME, JSON.stringify(formatted));
+      return formatted;
+    }
+
+    // 🟢 Otherwise, continue the saved game if available
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return [];
+      }
+    }
+
+    // 🟢 Default: no players
+    return [];
+  });
+
+
+  // ✅ Save to localStorage whenever players change
+  // useEffect(() => {
+  //   localStorage.setItem(LOCAL_KEY_GAME, JSON.stringify(players));
+  // }, [players]);
+
+  // ⭐️ Sorting
   const sortedPlayers = useMemo(() => {
     return [...players].sort((a, b) => totalForplayer(b) - totalForplayer(a));
   }, [players]);
@@ -103,14 +128,14 @@ const Game = () => {
   const leader = sortedPlayers[0];
   const least = sortedPlayers[sortedPlayers.length - 1];
 
-  // --- Animation Variants ---
+  // --- Animations ---
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.1, // Stagger animation for player cards
-        delayChildren: 0.5, // Delay after header and stats
+        staggerChildren: 0.1,
+        delayChildren: 0.5,
       },
     },
   };
@@ -123,7 +148,6 @@ const Game = () => {
       transition: { type: "spring", stiffness: 120 },
     },
   };
-  // --- End Animation Variants ---
 
   // --- Handlers ---
   const handleChange = (index, value) => {
@@ -137,7 +161,7 @@ const Game = () => {
       prev.map((p, i) => {
         if (i !== index) return p;
         const val = Number(p.currentScore) || 0;
-        if (val === 0) return { ...p, currentScore: "" }; // Clear if 0 or NaN
+        if (val === 0) return { ...p, currentScore: "" };
         return {
           ...p,
           scores: [...p.scores, val],
@@ -158,7 +182,6 @@ const Game = () => {
   };
 
   const finishGame = () => {
-    // ... (Your finishGame logic using sortedPlayers remains here)
     const sorted = sortedPlayers;
 
     const topScore = totalForplayer(sorted[0]);
@@ -181,10 +204,13 @@ const Game = () => {
       return;
     }
 
+    // 🧹 Clear saved game after finishing
+    localStorage.removeItem(LOCAL_KEY_GAME);
+
     navigate("/results", { state: { players: sorted } });
   };
-  // --- End Handlers ---
 
+  // --- UI ---
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white p-4">
       <motion.h2
@@ -196,14 +222,12 @@ const Game = () => {
         Game On <span className="text-yellow-400">🎯</span>
       </motion.h2>
 
-      {/* ⭐️ STYLISH LEADERBOARD STATS */}
       <LeaderboardStats
         leader={leader}
         least={least}
         totalForplayer={totalForplayer}
       />
 
-      {/* ⭐️ ANIMATED PLAYER CARDS CONTAINER */}
       <motion.div
         className="flex flex-col gap-4 w-full max-w-md"
         variants={containerVariants}
@@ -211,7 +235,6 @@ const Game = () => {
         animate="visible"
       >
         {players.map((player, index) => (
-          // ⭐️ INDIVIDUAL PLAYER CARD ANIMATION
           <motion.div
             key={index}
             variants={itemVariants}
@@ -221,7 +244,6 @@ const Game = () => {
               {player.name}
             </h3>
 
-            {/* Input and Add Button */}
             <div className="flex gap-2 mb-3">
               <input
                 type="number"
@@ -239,18 +261,15 @@ const Game = () => {
               </button>
             </div>
 
-            {/* Scores List */}
             <div className="bg-gray-700/50 rounded-lg p-3 mb-3 max-h-24 overflow-y-auto">
               <h4 className="font-semibold mb-1 text-gray-300">Scores Log:</h4>
               {player.scores.length > 0 ? (
                 <ul className="flex flex-wrap gap-2">
                   {player.scores.map((s, i) => (
-                    // Score chip animation
                     <motion.li
                       key={i}
                       initial={{ scale: 0.5, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0.5, opacity: 0 }}
                       className="bg-yellow-500 text-black px-3 py-1 rounded-full text-sm font-medium flex items-center"
                     >
                       {s}
@@ -274,7 +293,6 @@ const Game = () => {
           </motion.div>
         ))}
 
-        {/* Finish Game Button */}
         <motion.button
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -290,14 +308,3 @@ const Game = () => {
 };
 
 export default Game;
-
-
-
-
-// /**
-//  * Game component
-//  * - Immutable updates
-//  * - Live leader display
-//  * - Confirm before finishing
-//  * - Save finished games to localStorage ("gameHistory")
-//  */

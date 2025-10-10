@@ -4,6 +4,7 @@ import MatchSetup from "./pages/MatchSetup";
 import History from "./pages/History";
 import Game from "./pages/Game";
 import Results from "./pages/Results";
+import Tiebreak from "./pages/Tiebreak";
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
         <Route path="/history" element={<History />} />
         <Route path="/game" element={<Game/>} />
         <Route path="/results" element={<Results/>} />
+        <Route path="/tiebreak" element={<Tiebreak/>} />
       </Routes>
     </Router>
   );
